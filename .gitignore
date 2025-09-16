@@ -1,0 +1,13 @@
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+
+# Docker
+*.log
+*.pid
+
+# Kubernetes / Helm
+*.yaml~
+*.bak
+
