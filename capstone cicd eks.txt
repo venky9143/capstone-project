@@ -1,0 +1,11 @@
+
+
+1.aws iam create-role \
+  --role-name myAmazonEKSClusterRole \
+  --assume-role-policy-document file://"eks-cluster-role-trust-policy.json"
+2. aws iam attach-role-policy \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy \
+  --role-name myAmazonEKSClusterRole
+
+3.Configuring kubectl for EKS
+1.aws eks update-kubeconfig --name your-cluster-name
