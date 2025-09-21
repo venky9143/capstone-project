@@ -84,3 +84,11 @@ helm install prometheus prometheus-community/prometheus
 helm install grafana grafana/grafana
 
 
+Accessing the Application
+
+NodePort: http://<node-public-ip>:30343
+Grafana: http://<grafana-ip>:3000
+Default login: admin/admin
+Prometheus: http://<prometheus-ip>:9090
+
+
