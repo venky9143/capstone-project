@@ -62,3 +62,17 @@ variable "node_group_name" {
   default     = "capstone-node-group"
 
 }
+variable "corednsaddon-name" {
+  type    = string
+  default = "coredns"
+}
+variable "kubeaddon-name" {
+  type    = string
+  default = "KubeProxy"
+
+}
+variable "vpcaddon-name" {
+  type    = string
+  default = "Vpccni"
+
+}

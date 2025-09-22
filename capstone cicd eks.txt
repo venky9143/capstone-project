@@ -9,3 +9,8 @@
 
 3.Configuring kubectl for EKS
 1.aws eks update-kubeconfig --name your-cluster-name
+
+addons are required 
+1. pod idddentity agent 
+2. vpc-Cni 
+3. kube proxy

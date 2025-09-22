@@ -1,0 +1,11 @@
+{{- if .Values.nginxConfig.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.nginxConfig.configMapName }}
+  labels:
+    app: {{ include "capstone-chart.name" . }}
+data:
+  nginx.conf: |
+{{ .Values.nginxConfig.configFile | indent 4 }}
+{{- end }}

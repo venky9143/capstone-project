@@ -26,3 +26,11 @@ module "eks" {
   cluster_role_arn = module.iam.EKS_Cluster_Role_arn
   node_role_arn    = module.iam.EKS_Node_Role_arn
 }
+
+module "addons" {
+  source             = "./modules/addons"
+  cluster_name       = module.eks.eks_cluster_name
+  vpc_addon_name     = "vpc-cni"
+  kube_addon_name    = "kube-proxy"
+  coredns_addon_name = "coredns"
+}

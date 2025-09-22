@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Capstone Project for  EKS Cluster
+
+Parameters:
+  Environment:
+    Type: String
+    Default: Dev
+    Description: Enviornment
+
+  ClusterName:
+    Type: String
+    Default: capstone
+    Description: Cluster Name
+
+  ClusterVersion:
+    Type: String
+    Default: '1.33'
+    Description: Cluster Version
+
+  ClusterRoleArn:
+    Type: String
+    Default: arn:aws:iam::905418376874:role/AmazonEKSAutoClusterRole
+    Description: Cluster Role ARN
+
+  NodeRoleArn:
+    Type: String
+    Default: arn:aws:iam::905418376874:role/AmazonEKSAutoNodeRole
+    Description: Node Role ARN
+  
+
+  VpcId:
+    Type: String
+    Default: vpc-0d5ba31c971eeaefa
+    Description: VPC Id
+
+  SubnetIds:
+    Type: String
+    Default: subnet-0b55f8050720f9544,subnet-0c5429982c1717f69,subnet-0d1874bb0bad97f05
+    Description: Subnet IDs
+
+Resources:
+  ## Security Group
+  EKSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Securtity Group for EKS
+      VpcId: !Ref VpcId
+  ## 1. EKS Cluster
+  eks:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      Version: !Ref ClusterVersion
+      RoleArn: !Ref ClusterRoleArn
+      ResourcesVpcConfig:
+        SecurityGroupIds:
+          - !Ref EKSSecurityGroup
+        SubnetIds: !Split
+          - ','
+          - !Ref SubnetIds
+
+  ## 2. EKS NodeGroup
+  nodegroup:
+    Type: AWS::EKS::Nodegroup
+    DependsOn: eks
+    Properties:
+      ClusterName: !Ref ClusterName
+      NodegroupName: !Sub ${ClusterName}-nodegroup
+      NodeRole: !Ref NodeRoleArn
+      Subnets: !Split
+        - ','
+        - !Ref SubnetIds
+      ScalingConfig:
+        MinSize: 1
+        MaxSize: 3
+        DesiredSize: 1
+
+  ## 3. EKS Addon
+  KubeProxyAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: eks
+    Properties:
+      AddonName: kube-proxy
+      ClusterName: !Ref ClusterName
+      ResolveConflicts: OVERWRITE
+
+
+  CoreDNSAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: eks
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref ClusterName
+      ResolveConflicts: OVERWRITE
+
+
+  VpcCniAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: eks
+    Properties:
+      AddonName: vpc-cni
+      ClusterName: !Ref ClusterName
+      ResolveConflicts: OVERWRITE
+
+  EbsCsiDriverAddon:
+    Type: AWS::EKS::Addon
+    DependsOn: eks
+    Properties:
+      AddonName: aws-ebs-csi-driver
+      ClusterName: !Ref ClusterName
+      ResolveConflicts: OVERWRITE
+
+
+
+      
+Outputs:
+  EKSClusterName:
+    Description: EKS Cluster Name
+    Value: !Ref ClusterName
+
+  EKSClusterVersion:
+    Description: EKS Cluster Version
+    Value: !Ref ClusterVersion
+
+  EKSClusterRoleArn:
+    Description: EKS Cluster Role ARN
+    Value: !Ref ClusterRoleArn
+
+  EKSNodegroupName:
+    Description: EKS NodeGroup Name
+    Value: !GetAtt nodegroup
+    
+  EKSNodegroupRoleArn:
+    Description: EKS NodeGroup Role ARN
+    Value: !Ref NodeRoleArn
+
+  EKSVPCID:
+    Description: EKS VPC ID
+    Value: !Ref VpcId
+
+  EKSSubnetIDs:
+    Description: EKS Subnet IDs
+    Value: !Ref SubnetIds
+
+  EKSClusterEndpoint:
+    Description: EKS Cluster Endpoint
+    Value: !GetAtt eks.Endpoint

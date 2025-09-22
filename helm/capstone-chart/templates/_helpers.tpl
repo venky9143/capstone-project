@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "capstone-chat.name" -}}
+{{- define "capstone-chart.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "capstone-chat.fullname" -}}
+{{- define "capstone-chart.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,16 +26,16 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "capstone-chat.chart" -}}
+{{- define "capstone-chart.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "capstone-chat.labels" -}}
-helm.sh/chart: {{ include "capstone-chat.chart" . }}
-{{ include "capstone-chat.selectorLabels" . }}
+{{- define "capstone-chart.labels" -}}
+helm.sh/chart: {{ include "capstone-chart.chart" . }}
+{{ include "capstone-chart.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -45,17 +45,17 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "capstone-chat.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "capstone-chat.name" . }}
+{{- define "capstone-chart.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "capstone-chart.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "capstone-chat.serviceAccountName" -}}
+{{- define "capstone-chart.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "capstone-chat.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "capstone-chart.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

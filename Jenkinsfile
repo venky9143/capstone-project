@@ -1,59 +1,46 @@
-pipeline {
+pipeline{
     agent any
-
     environment {
-        REGISTRY        = "venkateshkesa"
-        IMAGE           = "capstoneproject"
-        TAG             = "${BUILD_ID}"
-        MINIKUBE_PROFILE= "jenkins-minikube"
-        MINIKUBE_HOME   = "C:\\JenkinsMinikube"
-        // KUBECONFIG is set for Windows PowerShell commands in 'bat' steps
-        KUBECONFIG      = "C:\\JenkinsMinikube\\.kube\\config"
+        // DockerHub credentials from Jenkins credentials store
+        DOCKER_CREDENTIALS = credentials('dockerhub')
+
+        // AWS credentials from Jenkins credentials store
+        AWS_ACCESS = credentials('AWS ACCESS ')
+
+        // Kubeconfig file stored as Jenkins secret file
+        KUBECONFIG_FILE = credentials('KUBECONFIG')
+        REGISTRY= "venky9143"
+        IMAGE = "capstone-project"
+        TAG = "${BUILD_ID}"
+        AWS_REGION = "us-east-1"            // change if needed
+        ACCOUNT_ID =  "905418376874" // replace with your AWS account ID
+        REPO_NAME  = "capstone-project"
+        ECR_URL    = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
     }
-
-    stages {
-        stage('Check Nginx version') {
-            steps {
-                bat 'C:\\Users\\Infinite\\Desktop\\nginx-1.29.1\\nginx.exe -v'
+    stages{
+        stage('CHECKOUT'){
+            steps{
+                echo "Checking out the code..."
+                git branch: 'main', url: 'https://github.com/venky9143/capstone-project.git'
             }
         }
-
-        stage('Check Docker version') {
-            steps {
-                bat 'docker -v'
+        stage('LIST FILES IN DIRECTORY '){
+            steps{
+                echo "Listing the files in the repository..."
+                bat 'dir'
             }
         }
-
-        stage('Helm version') {
-            steps {
-                bat 'helm version'
-            }
-        }
-
-        stage('Kubectl version') {
-            steps {
-                bat '''
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; kubectl version --client"
-                '''
-            }
-        }
-
-        stage('Docker login') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    bat 'docker login -u %USERNAME% -p %PASSWORD%'
+        stage('parallel'){
+            parallel{
+                stage('LIST OF DOCKR IMAGES '){
+                    steps{
+                        echo "Listing Docker images..."
+                        bat 'docker images'
+                    }
                 }
-            }
-        }
-
-        stage('Parallel Docker tasks') {
-            parallel {
-                stage('List Docker images') {
-                    steps { bat 'docker images' }
-                }
-                stage('Remove Docker images') {
-                    steps {
-                        bat '''
+                stage('DELETEING OLD IMAGES'){
+                    steps{
+                        bat ''' 
                         FOR /F "tokens=*" %%i IN ('docker images -q') DO (
                             echo Removing image %%i
                             docker rmi -f %%i || echo Failed to remove image %%i, continuing...
@@ -65,134 +52,131 @@ pipeline {
             }
         }
 
-        stage('Docker Build') {
-            parallel {
-                stage('Copy Build Context') {
-                    steps {
-                        bat '''
-                        copy C:\\Users\\Infinite\\Desktop\\capstone-project\\Dockerfile .
-                        copy C:\\Users\\Infinite\\Desktop\\capstone-project\\index.html .
-                        '''
-                    }
+        stage('BUILD DOKCR IMAGE WITH BUILD ID'){
+            steps{
+                echo "Building the Docker image..."
+                bat 'docker build -t %REGISTRY%/%IMAGE%:%TAG% .'
+            }
+        }
+        stage('LIST OF NEWLY CEREATED DOCKER IMAGES '){
+            steps{
+                echo "Listing Docker images..."
+                bat 'docker images'
+            }
+        }
+        stage('ECR LOGIN'){
+            steps{
+                bat'''
+                echo "Logging to AWS ECR "
+                aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_URL%
+                '''
+            }
+        }
+        stage('Create ECR Repo if not exists') {
+            steps {
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                bat '''
+                    echo "Checking if ECR repo exists..."
+                    aws ecr describe-repositories --repository-names %REPO_NAME% --region %AWS_REGION% >nul 2>&1
+
+                    if %ERRORLEVEL% NEQ 0 (
+                    echo "Repository not found, creating new repo: %REPO_NAME%"
+                    aws ecr create-repository --repository-name %REPO_NAME% --region %AWS_REGION%
+                    ) 
+
+                    if %ERRORLEVEL% EQU 0 (
+                    echo Repository already exists: %REPO_NAME%
+                    )
+                    '''
                 }
-                stage('Build & Push Image') {
-                    steps {
-                        bat '''
-                        docker build -t %REGISTRY%/%IMAGE%:%TAG% .
-                        docker images
-                        docker push %REGISTRY%/%IMAGE%:%TAG%
-                        '''
-                    }
+            }
+        }
+        stage('REPO NAME DISPLAY'){
+            steps{
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    bat '''
+                    echo "Repo Name Output"
+                    aws ecr describe-repositories --repository-names %REPO_NAME% --region %AWS_REGION%
+                    '''
                 }
             }
         }
-
-        stage('Check Minikube') {
+        stage('DOCKER TAGGING AND PUSH TO ECR') {
             steps {
-                bat '''
-                  echo MINIKUBE_HOME=%MINIKUBE_HOME%
-                  dir %MINIKUBE_HOME%
-        
-                 echo === Checking Minikube Status ===
-                 minikube status --profile=%MINIKUBE_PROFILE%
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
 
-                echo === Updating kubectl context ===
-                minikube update-context --profile=%MINIKUBE_PROFILE%
 
-                echo === Switching context to Jenkins Minikube ===
-                kubectl config use-context %MINIKUBE_PROFILE%
+                    bat '''
+                    echo "docker image tagging and push to ECR"
+                    docker tag %REGISTRY%/%IMAGE%:%TAG% %ECR_URL%/%REPO_NAME%:%TAG%
 
-                echo === Verifying Kubernetes Nodes ===
-                kubectl get nodes 
-                '''
+                    echo "Finding and deleting the manifest list (if any)"
+                    for /f %%i in ('aws ecr list-images --repository-name %REPO_NAME% --region %AWS_REGION% --filter "tagStatus=ANY" --query "imageIds[?type==`MANIFEST_LIST`].imageDigest" --output text') do (
+                        echo "Deleting manifest list digest %%i"
+                        aws ecr batch-delete-image --repository-name %REPO_NAME% --region %AWS_REGION% --image-ids imageDigest=%%i
+                    )
+
+                    echo "Listing the old images in ECR (excluding current tag) into images.json"
+                    aws ecr list-images --repository-name %REPO_NAME% --region %AWS_REGION% --query "imageIds[?imageTag!='%TAG%']" --output json > images.json
+
+                    echo "Deleting the old images ECR listed in the file images.json"
+                    if exist images.json (
+                        echo "Deleting old images..."
+                        aws ecr batch-delete-image --repository-name %REPO_NAME% --region %AWS_REGION% --image-ids file://images.json
+                    ) else (
+                        echo "No Old images are found"
+                    )
+
+                    echo "Pushing new Docker image to ECR"
+                    docker push %ECR_URL%/%REPO_NAME%:%TAG%
+                    '''
+                }
             }
         }
-
-        stage('Verify Kubernetes') {
-            steps {
-                bat '''
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; kubectl get nodes"
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; minikube status --profile=%MINIKUBE_PROFILE%"
-                '''
+        stage('Terraform Init'){
+            steps{
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    bat '''
+                    echo "Change Directory to Terraform"
+                    cd terraform
+                    terraform init
+                    '''
+                }
             }
         }
+        stage('Terraform Format'){
+            steps{
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
 
-        stage('Helm Deploy') {
-            steps {
                 bat '''
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; cd C:\\Users\\Infinite\\Desktop\\capstone-project\\helm\\capstone-chart; helm upgrade --install capstone-chat . --set image.repository=%REGISTRY%/%IMAGE% --set image.tag=%TAG% --namespace capstone --create-namespace; kubectl get all -n capstone"
+                echo "Terraform Formatting"
+                cd terraform
+                terraform fmt
                 '''
+                }
             }
         }
-
-        stage('Check Helm Releases') {
-            steps {
-                bat '''
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; helm list -n capstone"
-                '''
+        stage('Terrafor validate'){
+            steps{
+                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
+                    bat '''
+                    echo "Terraform validating"
+                    cd terraform
+                    terraform validate
+                    '''
+                }
             }
         }
-
-        stage('Verify Deployment') {
-            steps {
-                bat '''
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; kubectl get all -n capstone"
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; kubectl get pods -n capstone"
-                powershell -Command "$env:KUBECONFIG='C:\\JenkinsMinikube\\.kube\\config'; kubectl get svc -n capstone"
-                '''
+        stage('terraform plan'){
+            steps{
+                withCredentials([aws(accessKeyVariable:'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
+                    bat '''
+                    echo "Terraform Plan"
+                    cd terraform
+                    terraform plan
+                    '''
+                }
             }
-        }
-
-        stage('Minikube Service Access') {
-            steps {
-                bat '''
-                echo Getting Minikube IP and NodePort...
-                set MINIKUBE_IP=
-                for /f "tokens=*" %%i in ('minikube ip --profile=%MINIKUBE_PROFILE%') do set MINIKUBE_IP=%%i
-
-                echo Minikube IP is %MINIKUBE_IP%
-                kubectl get svc capstone-chat -n capstone -o=jsonpath="{.spec.ports[0].nodePort}" > nodeport.txt
-                set /p NODE_PORT=<nodeport.txt
-
-                echo NodePort is %NODE_PORT%
-                echo Application URL: http://%MINIKUBE_IP%:%NODE_PORT%
-                '''
-            }
-        }
-        stage('Port Forward') {
-           steps {
-               bat '''
-               REM Kill any existing port-forward
-               for /f "tokens=5" %%a in ('netstat -ano ^| findstr :9090') do taskkill /F /PID %%a
-
-               REM Start port-forward in background
-               start /B kubectl port-forward svc/capstone-chat 9090:80 -n capstone
-
-               REM Wait a few seconds to ensure port-forward is ready
-               timeout /t 5 >nul
-
-               echo Application URL: http://localhost:9090
-               curl http://localhost:9090
-            '''
-           }
-        }
-
-    }
-
-    post {
-        success {
-            emailext(
-                subject: "Build SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Good news! Deployment was successful on Minikube.\n\nCheck details at ${env.BUILD_URL}",
-                to: 'venkat.kesa9@gmail.com'
-            )
-        }
-        failure {
-            emailext(
-                subject: "Build FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Oops! Something went wrong.\n\nCheck logs at ${env.BUILD_URL}",
-                to: 'venkat.kesa9@gmail.com'
-            )
         }
     }
 }

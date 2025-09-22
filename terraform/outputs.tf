@@ -76,3 +76,14 @@ output "eks-node-group_name" {
   description = "The name of the EKS Node Group"
   value       = module.eks.eks_node-group_name
 }
+output "vpcaddon" {
+  value = module.addons.vpccni
+}
+
+output "kube-proxy" {
+  value = module.addons.kube_proxy
+}
+
+output "coredns" {
+  value = module.addons.coredns
+}

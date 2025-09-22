@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "capstone-chat.fullname" . }}
+  name: {{ include "capstone-chart.fullname" . }}
   labels:
-    {{- include "capstone-chat.labels" . | nindent 4 }}
+    {{- include "capstone-chart.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
@@ -18,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "capstone-chat.labels" . | nindent 8 }}
+        {{- include "capstone-chart.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -27,12 +27,13 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "capstone-chat.serviceAccountName" . }}
+      serviceAccountName: {{ include "capstone-chart.serviceAccountName" . }}
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
+        # --- Main App Container ---
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}
           securityContext:
@@ -60,10 +61,32 @@ spec:
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
+        # --- Nginx Exporter Sidecar ---
+        - name: nginx-exporter
+          image: "{{ .Values.nginxExporter.image }}:{{ .Values.nginxExporter.tag }}"
+          args:
+            - --nginx.scrape-uri={{ .Values.nginxExporter.scrapeUri }}
+          ports:
+            - containerPort: {{ .Values.nginxExporter.port }}
+              name: metrics
+          {{- with .Values.nginxExporter.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
       {{- with .Values.volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
+      {{- if .Values.nginxConfig.enabled }}
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ .Values.nginxConfig.configMapName }}
+      {{- end }}
+
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

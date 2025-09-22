@@ -1,9 +1,9 @@
-# Default values for capstone-chat.
+# Default values for capstone-chart.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
-replicaCount: 1
+replicaCount: 2
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image:
@@ -29,11 +29,14 @@ serviceAccount:
   annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
-  name: capstone-project-capstone-chat
+  name: ""
 
 # This is for setting Kubernetes Annotations to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
-podAnnotations: {}
+podAnnotations: 
+  prometheus.io/path: "/metrics"
+  prometheus.io/port: "9113"
+  prometheus.io/scrape:
 # This is for setting Kubernetes Labels to a Pod.
 # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 podLabels: {}
@@ -52,10 +55,11 @@ securityContext: {}
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
   # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-  type: LoadBalancer
+  type: NodePort
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 80
   targetPort: 80
+  nodePort: 30080
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
@@ -143,20 +147,56 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+volumes:
+  - name: nginx-config
+    configMap:
+      name: nginx-config
 
 # Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+volumeMounts:
+  - name: nginx-config
+    mountPath: /etc/nginx/nginx.conf
+    subPath: nginx.conf
 
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
+
+nginxExporter:
+  enabled: true
+  image: nginx/nginx-prometheus-exporter
+  tag: latest
+  scrapeUri: http://127.0.0.1:80/stub_status
+  port: 9113
+  resources: {}
+
+nginxConfig:
+  enabled: true
+  configMapName: nginx-config
+  configFile: |
+    events {}
+
+    http {
+      server {
+        listen 80;
+
+        location / {
+          root /usr/share/nginx/html;
+          index index.html;
+        }
+
+        location /stub_status {
+          stub_status;
+          allow 127.0.0.1;
+          deny all;
+        }
+      }
+    }
+server:
+  persistentVolume:
+    storageClass: gp2
+alertmanager:
+  persistentVolume:
+    storageClass: gp2
