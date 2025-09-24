@@ -283,7 +283,7 @@ pipeline{
             steps{
                  withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
                     bat'''
-                    echo "Upgrading or installing Helm capstone application"
+                    echo "Upgrading and installing Helm capstone application"
                     cd helm/capstone-chart/
                     helm upgrade capstone . -n capstone --install  --set image.repository=%ECR_URL%/%REPO_NAME% --set image.tag=%TAG% --wait --timeout 5m
                     '''
