@@ -262,8 +262,12 @@ pipeline{
                     steps{
                         withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
                             bat '''
+                            echo "kubernetes namspaces list"
+                            kubectl get ns
+                            echo" Deleting capstone namespace"
+                            kubectl delete ns capstone 
                             echo "Capstone Namespace creation"
-                            kubectl create namespace capstone --dry-run=client -o yaml | kubectl apply -f - "
+                            kubectl create namespace capstone
                             echo "Namespcae is already Exits"
 
                             '''
