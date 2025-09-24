@@ -263,7 +263,7 @@ pipeline{
                         withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
                             bat '''
                             echo "Capstone Namespace creation"
-                            kubectl create namespace capstone || echo "Namespace already exists, skipping..."
+                            kubectl create namespace capstone || echo "Namespace already exists, skipping "
 
                             '''
                         }
