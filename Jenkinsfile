@@ -269,8 +269,6 @@ pipeline{
                         }
                     }
                 }
-            }
-        }
         stage('Helm install'){
             steps{
                 withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
