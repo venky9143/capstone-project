@@ -264,6 +264,7 @@ pipeline{
                             bat '''
                             echo "Capstone Namespace creation"
                             kubectl create namespace capstone --dry-run=client -o yaml | kubectl apply -f - "
+                            echo "Namespcae is already Exits"
 
                             '''
                         }
