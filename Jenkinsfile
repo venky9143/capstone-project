@@ -187,7 +187,7 @@ pipeline{
                         bat '''
                         echo "Terraform apply"
                         cd terraform 
-                        terraform apply  capstonetf plan 
+                        terraform apply  capstonetfplan
                         '''
                 }
             }
