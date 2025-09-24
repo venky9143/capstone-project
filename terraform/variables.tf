@@ -54,7 +54,7 @@ variable "eks-node-cni_Policy_name" {
 variable "eks-cluster-name" {
   description = "The name of the EKS Cluster"
   type        = string
-  default     = "capstone-cluster"
+  default     = "capstone"
 }
 variable "node_group_name" {
   description = "The name of the EKS Node Group"
