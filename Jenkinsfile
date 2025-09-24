@@ -269,17 +269,6 @@ pipeline{
                         }
                     }
                 }
-        stage('Helm install'){
-            steps{
-                withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
-                    bat '''
-                    echo "Helm capstone application install"
-                    cd helm/capstone-chart/
-                    helm install capstone . -n capstone 
-                    '''
-                }
-            }
-        }
         stage('helm release status'){
             steps{
                 withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
@@ -288,6 +277,18 @@ pipeline{
                     helm ls -n capstone
                     '''
                 }
+            }
+        }
+        stage('Helm upgrade/install'){
+            steps{
+                 withCredentials([aws(accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'AWS ACCESS', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]){
+                    bat'''
+                    echo "Upgrading or installing Helm capstone application"
+                    cd helm/capstone-chart/
+                    helm upgrade capstone . -n capstone --install --set image.tag=%TAG% --wait --timeout 5m
+                    '''
+                 }
+
             }
         }
         stage('Kubernetees pos and services'){
