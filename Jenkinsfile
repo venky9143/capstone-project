@@ -285,7 +285,7 @@ pipeline{
                     bat'''
                     echo "Upgrading or installing Helm capstone application"
                     cd helm/capstone-chart/
-                    helm upgrade capstone . -n capstone --install --set image.tag=%TAG% --wait --timeout 5m
+                    helm upgrade capstone . -n capstone --install  --set image.repository=%ECR_URL%/%REPO_NAME% --set image.tag=%TAG% --wait --timeout 5m
                     '''
                  }
 
